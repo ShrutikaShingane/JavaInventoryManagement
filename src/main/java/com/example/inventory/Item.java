@@ -2,6 +2,7 @@
 package com.example.inventory;
 
 public class Item {
+
     private int id;
     private String name;
     private int quantity;
@@ -30,24 +31,23 @@ public class Item {
         return quantity;
     }
 
+    public void decreaseStock(int amount)
+            throws InsufficientStockException {
 
-public void decreaseStock(int amount)
-        throws InsufficientStockException {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(
+                "Amount must be greater than zero"
+            );
+        }
 
-    if (amount <= 0) {
-        throw new IllegalArgumentException(
-            "Amount must be greater than zero"
-        );
+        if (amount > quantity) {
+            throw new InsufficientStockException(
+                "Insufficient stock available!"
+            );
+        }
+
+        quantity -= amount;
     }
-
-    if (amount > quantity) {
-        throw new InsufficientStockException(
-            "Insufficient stock available!"
-        );
-    }
-
-    quantity -= amount;
-}
 
     @Override
     public String toString() {

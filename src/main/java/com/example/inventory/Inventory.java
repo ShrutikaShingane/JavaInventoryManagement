@@ -4,8 +4,12 @@ package com.example.inventory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,7 +19,6 @@ public class Inventory {
     private Map<Integer, Item> items = new HashMap<>();
 
     private static final String FILE_NAME = "inventory.json";
-
     private static final ObjectMapper mapper = new ObjectMapper();
 
     public Inventory() {
@@ -65,12 +68,40 @@ public class Inventory {
         }
     }
 
+    // Insert multiple items into PostgreSQL in one batch
+    public void batchInsertItems(List<Item> newItems)
+            throws SQLException {
+
+        String sql =
+            "INSERT INTO items (id, name, quantity) VALUES (?, ?, ?)";
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            for (Item item : newItems) {
+                ps.setInt(1, item.getId());
+                ps.setString(2, item.getName());
+                ps.setInt(3, item.getQuantity());
+
+                ps.addBatch();
+            }
+
+            int[] results = ps.executeBatch();
+
+            System.out.println(
+                "Batch insert completed. Records processed: "
+                + results.length
+            );
+        }
+    }
+
     private void saveItems() {
         try {
             mapper.writerWithDefaultPrettyPrinter()
                   .writeValue(new File(FILE_NAME), items);
 
             System.out.println("Inventory saved to JSON.");
+
         } catch (IOException e) {
             System.out.println(
                 "Error saving inventory: " + e.getMessage()
@@ -92,6 +123,7 @@ public class Inventory {
             );
 
             System.out.println("Inventory loaded from JSON.");
+
         } catch (IOException e) {
             System.out.println(
                 "Error loading inventory: " + e.getMessage()

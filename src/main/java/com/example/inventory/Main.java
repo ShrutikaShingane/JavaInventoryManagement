@@ -1,7 +1,9 @@
 
 package com.example.inventory;
 
-import java.util.Optional;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Main {
@@ -11,90 +13,137 @@ public class Main {
         Inventory inventory = new Inventory();
         Scanner sc = new Scanner(System.in);
 
-        int choice = 0;
+        try {
+            boolean running = true;
 
-        do {
-            System.out.println("\n===== INVENTORY MANAGEMENT =====");
-            System.out.println("1. Add Item");
-            System.out.println("2. Find Item by ID");
-            System.out.println("3. Decrease Stock");
-            System.out.println("4. Display All Items");
-            System.out.println("5. Exit");
-            System.out.print("Enter your choice: ");
+            while (running) {
+                System.out.println("\n=== Inventory Management ===");
+                System.out.println("1. Add Item to JSON");
+                System.out.println("2. Find Item by ID");
+                System.out.println("3. Decrease Stock");
+                System.out.println("4. Display All Items");
+                System.out.println("5. Batch Insert into PostgreSQL");
+                System.out.println("6. Exit");
+                System.out.print("Enter choice: ");
 
-            try {
-                choice = Integer.parseInt(sc.nextLine().trim());
+                int choice;
 
-                switch (choice) {
+                try {
+                    choice = Integer.parseInt(sc.nextLine());
+                } catch (NumberFormatException e) {
+                    System.out.println("Enter a valid number.");
+                    continue;
+                }
 
-                    case 1:
-                        System.out.print("Enter item ID: ");
-                        int id = Integer.parseInt(sc.nextLine().trim());
+                try {
+                    switch (choice) {
 
-                        System.out.print("Enter item name: ");
-                        String name = sc.nextLine().trim();
+                        case 1: {
+                            System.out.print("Enter item ID: ");
+                            int id = Integer.parseInt(sc.nextLine());
 
-                        System.out.print("Enter quantity: ");
-                        int quantity =
-                            Integer.parseInt(sc.nextLine().trim());
+                            System.out.print("Enter item name: ");
+                            String name = sc.nextLine();
 
-                        if (name.isEmpty()) {
-                            System.out.println("Name cannot be empty.");
+                            System.out.print("Enter quantity: ");
+                            int quantity = Integer.parseInt(sc.nextLine());
+
+                            inventory.addItem(
+                                new Item(id, name, quantity)
+                            );
                             break;
                         }
 
-                        Item item = new Item(id, name, quantity);
-                        inventory.addItem(item);
-                        break;
+                        case 2: {
+                            System.out.print("Enter item ID: ");
+                            int id = Integer.parseInt(sc.nextLine());
 
-                    case 2:
-                        System.out.print("Enter item ID to search: ");
-                        int searchId =
-                            Integer.parseInt(sc.nextLine().trim());
-
-                        Optional<Item> result =
-                            inventory.findItemById(searchId);
-
-                        if (result.isPresent()) {
-                            System.out.println(result.get());
-                        } else {
-                            System.out.println("Item not found.");
+                            inventory.findItemById(id)
+                                .ifPresentOrElse(
+                                    System.out::println,
+                                    () -> System.out.println(
+                                        "Item not found!"
+                                    )
+                                );
+                            break;
                         }
-                        break;
 
-                    case 3:
-                        System.out.print("Enter item ID: ");
-                        int stockId =
-                            Integer.parseInt(sc.nextLine().trim());
+                        case 3: {
+                            System.out.print("Enter item ID: ");
+                            int id = Integer.parseInt(sc.nextLine());
 
-                        System.out.print("Enter quantity to decrease: ");
-                        int amount =
-                            Integer.parseInt(sc.nextLine().trim());
+                            System.out.print("Enter quantity to decrease: ");
+                            int amount = Integer.parseInt(sc.nextLine());
 
-                        inventory.decreaseStock(stockId, amount);
-                        break;
+                            inventory.decreaseStock(id, amount);
+                            break;
+                        }
 
-                    case 4:
-                        inventory.displayAllItems();
-                        break;
+                        case 4:
+                            inventory.displayAllItems();
+                            break;
 
-                    case 5:
-                        System.out.println("Exiting Inventory System...");
-                        break;
+                        case 5: {
+                            List<Item> batch = new ArrayList<>();
 
-                    default:
-                        System.out.println("Invalid choice.");
+                            System.out.print(
+                                "How many items to insert? "
+                            );
+                            int count = Integer.parseInt(sc.nextLine());
+
+                            if (count <= 0) {
+                                System.out.println(
+                                    "Enter a positive number."
+                                );
+                                break;
+                            }
+
+                            for (int i = 0; i < count; i++) {
+                                System.out.println(
+                                    "\nEnter details for item " + (i + 1)
+                                );
+
+                                System.out.print("ID: ");
+                                int id = Integer.parseInt(sc.nextLine());
+
+                                System.out.print("Name: ");
+                                String name = sc.nextLine();
+
+                                System.out.print("Quantity: ");
+                                int quantity =
+                                    Integer.parseInt(sc.nextLine());
+
+                                batch.add(new Item(id, name, quantity));
+                            }
+
+                            inventory.batchInsertItems(batch);
+                            break;
+                        }
+
+                        case 6:
+                            running = false;
+                            System.out.println("Application closed.");
+                            break;
+
+                        default:
+                            System.out.println("Invalid choice.");
+                    }
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Please enter valid numeric values.");
+                } catch (IllegalArgumentException
+                         | InsufficientStockException e) {
+                    System.out.println("Error: " + e.getMessage());
+                } catch (SQLException e) {
+                    System.out.println(
+                        "Database error: " + e.getMessage()
+                    );
                 }
-            } catch (InsufficientStockException e) {
-                System.out.println("Stock Error: " + e.getMessage());
-            } catch (NumberFormatException e) {
-                System.out.println("Please enter valid numeric values.");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
             }
 
-        } while (choice != 5);
-
-        sc.close();
+        } finally {
+            DatabaseConnection.closePool();
+            sc.close();
+        }
     }
 }
